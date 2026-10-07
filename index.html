@@ -3,57 +3,2188 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Test</title>
+    <title>K-Means Visualizer | LarbUbon</title>
     <style>
+      :root {
+        --win: #1e1e20;
+        --bar: #2a2a2d;
+        --inset: #161618;
+        --field: #2c2c2e;
+        --line: rgba(255, 255, 255, 0.08);
+        --text: #ebebf0;
+        --muted: #98989f;
+        --dim: #5c5c62;
+        --blue: #0a84ff;
+        --green: #30d158;
+        --red: #ff453a;
+        --cyan: #64d2ff;
+        --mono:
+          ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+        --sans:
+          -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue",
+          "Segoe UI", Roboto, sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
       body {
-        background: #171b24;
-        color: #dfe3ea;
-        font-family: Arial, sans-serif;
+        height: 100%;
+      }
+      body {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        font: 13px/1.45 var(--sans);
+        color: var(--text);
+        background:
+          radial-gradient(1200px 700px at 12% 0%, #23305a 0%, transparent 60%),
+          radial-gradient(
+            900px 700px at 100% 100%,
+            #3a2350 0%,
+            transparent 60%
+          ),
+          #0d0e14;
+        overflow: hidden;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      header {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 10px 22px;
+        background: rgba(28, 28, 32, 0.72);
+        backdrop-filter: blur(24px) saturate(160%);
+        -webkit-backdrop-filter: blur(24px) saturate(160%);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+      }
+      .logo {
+        flex: none;
+      }
+      header h1 {
+        font-size: 17px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      header p {
+        color: var(--muted);
+        font-size: 12.5px;
+        max-width: 92ch;
+      }
+      .menu-right {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        color: var(--muted);
+        font-size: 12px;
+        white-space: nowrap;
+      }
+      .menu-right a {
+        color: var(--muted);
+        text-decoration: none;
+      }
+      .menu-right a:hover {
+        color: var(--text);
+      }
+      #clock {
+        color: var(--text);
+        font-variant-numeric: tabular-nums;
+      }
+
+      main {
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+        gap: 22px;
+        padding: 18px 22px 0;
+        min-height: 0;
+      }
+      .col {
+        overflow-y: auto;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        padding: 2px 8px 22px 2px;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+      }
+      .col::-webkit-scrollbar {
+        width: 8px;
+      }
+      .col::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.16);
+        border-radius: 4px;
+      }
+
+      .win {
+        flex: none;
+        background: var(--win);
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow:
+          0 22px 48px rgba(0, 0, 0, 0.45),
+          0 0 0 0.5px rgba(0, 0, 0, 0.7);
+        overflow: hidden;
+      }
+      .tb {
+        height: 30px;
+        position: relative;
+        display: flex;
+        align-items: center;
+        padding: 0 12px;
+        background: var(--bar);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.45);
+      }
+      .lights {
+        display: flex;
+        gap: 8px;
+      }
+      .lights i {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: block;
+      }
+      .lights i:nth-child(1) {
+        background: #ff5f57;
+      }
+      .lights i:nth-child(2) {
+        background: #febc2e;
+      }
+      .lights i:nth-child(3) {
+        background: #28c840;
+      }
+      .tb .title {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--muted);
+        pointer-events: none;
+      }
+      .tb .title b {
+        color: var(--text);
+        font-weight: 600;
+        margin-right: 6px;
+      }
+      .wb {
+        padding: 14px 16px 16px;
+      }
+      .cap {
+        color: var(--muted);
+        font-size: 12px;
+        margin-bottom: 10px;
+      }
+      .sub {
+        font-size: 11.5px;
+        font-weight: 600;
+        color: var(--muted);
+        margin: 14px 0 8px;
+      }
+      .sub:first-child {
+        margin-top: 0;
+      }
+
+      .toolbar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        padding: 10px 16px;
+        border-bottom: 1px solid var(--line);
+      }
+      #map {
+        display: block;
+        width: 100%;
+        aspect-ratio: 10 / 7;
+        background: #141619;
+        touch-action: none;
+      }
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 16px;
+        padding: 10px 16px 12px;
+        color: var(--muted);
+        font-size: 11.5px;
+        border-top: 1px solid var(--line);
+      }
+      .legend label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+      }
+
+      .seg {
+        display: inline-flex;
+        background: var(--field);
+        border-radius: 7px;
+        padding: 2px;
+        gap: 2px;
+      }
+      .seg button {
+        background: transparent;
+        border: 0;
+        color: var(--text);
+        padding: 4px 12px;
+        border-radius: 5px;
+        font: 12px var(--sans);
+        cursor: pointer;
+      }
+      .seg button.on {
+        background: #636366;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+      }
+      .grid2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px 22px;
+      }
+      .param {
+        display: grid;
+        grid-template-columns: 96px minmax(0, 1fr) 40px;
+        align-items: center;
+        gap: 8px;
+      }
+      .param label {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .param output {
+        font: 12px var(--mono);
+        text-align: right;
+        color: var(--text);
+      }
+      input[type="range"] {
+        width: 100%;
+        accent-color: var(--blue);
+      }
+      select,
+      input[type="number"] {
+        width: 100%;
+        background: var(--field);
+        color: var(--text);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 6px;
+        padding: 3px 6px;
+        font: 12px var(--sans);
+      }
+      .seedrow {
+        display: flex;
+        gap: 6px;
+      }
+      .btn {
+        background: #3a3a3c;
+        color: var(--text);
+        border: 0;
+        border-radius: 6px;
+        padding: 6px 12px;
+        font: 500 12.5px var(--sans);
+        cursor: pointer;
+        box-shadow:
+          inset 0 0.5px 0 rgba(255, 255, 255, 0.12),
+          0 1px 2px rgba(0, 0, 0, 0.3);
+      }
+      .btn:hover:not(:disabled) {
+        background: #48484a;
+      }
+      .btn.primary {
+        background: var(--blue);
+        color: #fff;
+      }
+      .btn.primary:hover:not(:disabled) {
+        background: #2b95ff;
+      }
+      .btn.small {
+        padding: 3px 9px;
+        font-size: 12px;
+      }
+      .btn:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+      .btn:focus-visible,
+      .seg button:focus-visible,
+      select:focus-visible,
+      input:focus-visible {
+        outline: 2px solid var(--blue);
+        outline-offset: 2px;
+      }
+      .btnrow {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .kbd {
+        font: 11px var(--mono);
+        color: var(--muted);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 4px;
+        padding: 0 5px;
+      }
+      .status {
+        margin-top: 12px;
+        padding: 8px 10px;
+        border-radius: 7px;
+        background: var(--inset);
+        font: 12px var(--mono);
+        color: var(--muted);
+      }
+      .status b {
+        color: var(--text);
+        font-weight: 500;
+      }
+
+      .code {
+        background: #1a1a1c;
+        font: 12.5px/22px var(--mono);
+        padding: 8px 0;
+        overflow-x: auto;
+      }
+      .ln {
+        display: flex;
+        white-space: pre;
+        position: relative;
+        padding-right: 14px;
+        min-width: max-content;
+      }
+      .ln .no {
+        width: 44px;
+        flex: none;
+        text-align: right;
+        padding-right: 16px;
+        color: #48484c;
+        user-select: none;
+      }
+      .ln.ran {
+        background: rgba(255, 255, 255, 0.025);
+      }
+      .ln.active {
+        background: rgba(10, 132, 255, 0.24);
+      }
+      .ln.active::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        background: var(--blue);
+      }
+      .ln.active .no {
+        color: var(--text);
+      }
+      .note {
+        margin-left: 44px;
+        padding: 3px 12px 4px 16px;
+        white-space: pre-wrap;
+        color: var(--cyan);
+        font-size: 12px;
+        line-height: 18px;
+        background: rgba(10, 132, 255, 0.08);
+        border-left: 2px solid rgba(100, 210, 255, 0.5);
+      }
+      .kw {
+        color: #fc5fa3;
+      }
+      .nu {
+        color: #d0bf69;
+      }
+      .fn {
+        color: #67b7a4;
+      }
+      .md {
+        color: #5dd8ff;
+      }
+      .cm {
+        color: #6c7986;
+        font-style: italic;
+      }
+      .pl {
+        color: #dfdfe0;
+      }
+      .vars {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 10px 16px 12px;
+        border-top: 1px solid var(--line);
+        background: var(--win);
+      }
+      .var {
+        font: 12px var(--mono);
+        background: var(--inset);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 3px 8px;
+        transition:
+          background 0.5s,
+          border-color 0.5s;
+      }
+      .var span {
+        color: var(--muted);
+      }
+      .var.flash {
+        background: rgba(10, 132, 255, 0.3);
+        border-color: var(--blue);
+        transition: none;
+      }
+
+      /* model state */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font: 12px var(--mono);
+      }
+      th,
+      td {
+        padding: 5px 8px;
+        text-align: right;
+        border-bottom: 1px solid var(--line);
+        white-space: nowrap;
+      }
+      th {
+        color: var(--muted);
+        font-weight: 500;
+        font-family: var(--sans);
+        font-size: 11.5px;
+      }
+      th:first-child,
+      td:first-child {
+        text-align: left;
+      }
+      tr.act td {
+        background: rgba(10, 132, 255, 0.14);
+      }
+      td.min {
+        font-weight: 700;
+      }
+      .sw {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-right: 7px;
+        vertical-align: -1px;
+        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.12);
+      }
+      .cnt {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+      .cnt i {
+        display: block;
+        height: 6px;
+        border-radius: 3px;
+        min-width: 2px;
+      }
+      .tablewrap {
+        overflow-x: auto;
+      }
+      .empty {
+        color: var(--dim);
+        font-size: 12px;
+        padding: 6px 0;
+      }
+      .tries {
+        display: flex;
+        align-items: flex-end;
+        gap: 6px;
+        height: 92px;
+        padding-top: 4px;
+      }
+      .try {
+        flex: 1;
+        max-width: 40px;
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
-        height: 100vh;
-        margin: 0;
-        gap: 20px;
+        gap: 3px;
+        height: 100%;
+        justify-content: flex-end;
       }
-      img {
-        width: 200px;
-        border-radius: 12px;
+      .try .b {
+        width: 100%;
+        border-radius: 4px 4px 2px 2px;
+        background: #48484a;
+        min-height: 3px;
+        transition: height 0.3s;
       }
-      button {
-        font-size: 18px;
-        padding: 10px 24px;
-        border: none;
-        border-radius: 8px;
-        background: #4fa3ff;
-        color: #0f1a2a;
-        cursor: pointer;
+      .try.best .b {
+        background: var(--green);
+      }
+      .try.stuck .b {
+        background: var(--red);
+      }
+      .try.cur .b {
+        outline: 2px solid var(--blue);
+        outline-offset: 1px;
+      }
+      .try.pending .b {
+        background: transparent;
+        border: 1px dashed #48484a;
+        height: 18px;
+      }
+      .try small {
+        font: 10.5px var(--mono);
+        color: var(--muted);
+      }
+      .try.best small {
+        color: var(--green);
+      }
+      .try.stuck small {
+        color: var(--red);
+      }
+
+      /* loss */
+      #loss {
+        display: block;
+        width: 100%;
+        height: 220px;
+      }
+      .lleg {
+        display: flex;
+        gap: 16px;
+        color: var(--muted);
+        font-size: 11.5px;
+        margin-top: 8px;
+      }
+      .lleg i {
+        display: inline-block;
+        width: 16px;
+        height: 3px;
+        border-radius: 2px;
+        vertical-align: 3px;
+        margin-right: 6px;
+      }
+
+      footer {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        flex-wrap: wrap;
+        min-height: 30px;
+        padding: 5px 22px;
+        background: rgba(28, 28, 32, 0.72);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        border-top: 1px solid rgba(255, 255, 255, 0.07);
+        font-size: 11.5px;
+        color: var(--muted);
+      }
+      footer .grp {
+        color: var(--text);
+        font-weight: 600;
+      }
+      footer .mem {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 16px;
+      }
+      footer .mem span em {
+        font-style: normal;
+        font-family: var(--mono);
+        color: var(--dim);
+        margin-left: 5px;
+      }
+      footer .org {
+        margin-left: auto;
+        color: var(--text);
+        font-weight: 600;
+      }
+
+      @media (max-width: 1000px) {
+        body {
+          overflow: auto;
+          height: auto;
+        }
+        main {
+          grid-template-columns: 1fr;
+        }
+        .col {
+          overflow: visible;
+        }
+        .grid2 {
+          grid-template-columns: 1fr;
+        }
+        header {
+          flex-wrap: wrap;
+        }
+        .menu-right {
+          margin-left: 0;
+        }
       }
     </style>
   </head>
   <body>
-    <img
-      src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBAUEBAYFBQUGBgYHCQ4JCQgICRINDQoOFRIWFhUSFBQXGiEcFxgfGRQUHScdHyIjJSUlFhwpLCgkKyEkJST/2wBDAQYGBgkICREJCREkGBQYJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCT/wAARCACgAKADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD6pooooAKKK474mfEnTvh1oj3dwVlvJARBbg8sfU+1ADviH8T9E+HViJtQZp7mT/VWsRG9vc+gr5Y+I3xb1v4lXCxXZWz0+FiUtYicH3b1Nc7qev6n4116fU9TuHnkkYkljwg7AVBmCzLqQryPwvtQ3YajcytQnaeQJEDgVVmtmVfnc59K3JbaSJV+QDdz0pLfSWvJMtwg61DZqonPgui4UmkaV25YnAre1PS4rNRsXJNVo7GN4DvXrSuXyGH8x5BJFTwXFxAwdcjFWooEhk+ZMgdM1LPlxwg59BSJ5LGxomuQ3kiw3fyH+9WzeWNpPw2yRMcGuQt9JlnxgbT610Nhotytv+8uMr7dqfMVytlK60rT92Fi5HpVGaztYAxyoI96338PIw3NLLz0IqhP4TSY5Lvj3ouHIzm5kSQkj9KrqzxN8grq/wDhFXii3glkHQUxNJgkG14yhHcjFTzC9myrpWsMyiKRQD71sxzSyAEP9BVT/hHo1+ZDk9q0bW0MKAOpGOlVzA6bPuyiiud8feLrfwX4budTlYebjy4FP8Uh6fl1/CtDnMz4kfEe18E2PlRFZdRlX93H1Cf7R/wr5F8c69qXiLUpbzU7yS4lY/xHgD0Fb2q69Pq8819dSSTSyEsWc5ya4+8JunZtu4k9BTbSKirlGK4cQ7IvlB9O9PjsZkjM8oIwcjNdPovhhPJWW4U5PIWt1tGjmj8t0AXtWTZ1xpnHX1x9te1Efy8YNbMNpsjjij69Sa1j4XtxCDGBvXnmrdhokgUnv61DkaRpGJe2CTKPlDEVmto1wz4VcLXdR6SM4KEmrH9mJGhd02haXMzT2TPMrzTJIcr5PXvVNdMmRstGx9sV66ml2sqK7Iqg9CRQdEtg/wAgR/oKVxqieb2NvM2AImA9cVrjTLmSHau4f1rtv7KBwEjA+gqxbWSx5+Xc3pipuzRUkediDV4V2rAcDpmrEFjelQ86kFu3pXoTacXzuixmoho3JLqeOlHMP2JzEGmugBZfl96tTWltOnlvCvpnFdC2nkryuBULaeq5O3NK41SOKvdBktiXtzvXP3fSi1BKeXcoCM9fSuyewRx6VQudDL/NGKd7ESpWPqyvnr4/65/bPiCDRo5D9n08ZkAPBkbk/kMCvfr+8j0+xuLyU4jgiaVvooyf5V8j3mqr4h1a5us+Y9xK0jH0yc12I8dK5gXcBfKIu0HgVe0fQIbc+ZcsPXmtmaKztos7VYj1rmNb1yRz5FsCW6YFZSkdlKlY3rvxHp1mBHHGpYcAmq8Xi+yZgrxAkn+E1yaeHtTv1EjoEPXk81JDosunTKbgq2OwrM6Uj0m01DTL2EOMIfTNbFtFb+QREygAZx61wVpbxKFlifI64Bro9OvGMRUdQMUWuaRZrWMa3EhLNyDgVf1HT1fTmCjkc1mWG5OfU10CoZIMeopNG0dTNjZIbFFCrnHftWbc6vBak5QHHWtaSyby2TP0rlNZFvb3KQyMd7HpSB6blw+MbOGM/umzVaPxvCZB5cRBzzmkOmWPls0owoGTWFJax3MjLYW5wD98mhkO/Q6s+K5d4bYpQj0q2viJJApAwTXEpoOuD5o5l2/3DT3l1aw+aezLqO60rAuY9AhvluRjjIq28COo2HBri9M1iC5UYYxv0KnrXRafeOMKcMBU2Ki2W2tyBhl/HFJ9nLAKBV63njnOGwD6VbEMXGeDSLvoewa1Z/2jo99Z4z59vJFj6qRXx/oNu8JuE2hXRyhz1GOK+zK+W/E+nQ6V4z8Q29txCt2xA9M8kfmTXdex4VJXZyetzXJX7Lbp8x/ipdM0+20q3826ZDO3VmNWdQDsv7sgH1rR8LeDrTUI5L3WLppQPuRA9aytqdylZGXJqNoyE/a1T3zjNYN7fRPIWWUSfQ1o+Oo9Og1hEntmh0+OIiNYupbHGfxrzW3kujI5YlRngH0quUlVlsdTFrbWNyNrHaT8wrstI1JZwssT5Brz63svtNsZHJHvW74UstQhnUorNbsep7Vnsbxdz1S2f9yhPXrW9YPvUAngVzUAMxRF7V0VifJjG4c1nJnXSQ7UWjhBfeqgDJycV43rXiKPU/GMUMLjyo25b1r0/wAT2j6hZOiMV3cZ9K8U1bw3d6JrsUkZLxOwy9ESaujO4vLl7qcRB8RZ+atOIRW8QMQCgDvWNHazOF2RksehNdNY+C/tJhm1C7ZocZMUZrRRIvZXIUuZSM/aoIwexYVcgn5/1kcv0PWuF8b6UmnLcabDbyRtJIJIbkk5C+lcx4dW+06WWS6nmlOMRKrfxetPlMvrCvY9W1LQbe/zIg+zz9QVHU1l2OrXmk3gtbxAcnAfsavaFa+IbPSrae/dLgyDOxvvKKTxFAL22AZfLPr3FZSNU76o6azuIX2sG+b26VqRS5YelcJoNxd2axwMvnxdA3da6qG5YMMDFRcaPoOvmv4hWMlp441xG6yziUH2ZQR/OvpSvF/jTpCWXiCz1c7vLvYvJfA6OnT8wf0rtZ4lL4jzI6eJY8lsE1Lbx3FiA0WX29vWryvamM4Y1A99DEGw3I7GsnoenGmmrMztcjXXLYrc2ZSQdDXFP4ehEpQKXYdcV0Gr6pNNlY2YEnHBqxo2gyiEzTN97t6U+e6F7CKMGHSZAyh48RL0HrXW6VaXGxTt2p2Wtaw02ynKxNjcB3rV+w2tswSOYs2OnpUG9OC2H6baeXH83DGr2GQHJzU+kwxNOGkb5FHQ96nmSN5T5YAFQ0dastEZkzhoiriuQ8XaJd6kkX2WQRhTnnvXdNpCTHc8jAj0qK68PxSxlGkbGKlOwSimcDpukarNbASIzOnGVPBq/DdanYMqMrhk6AioLtNQ8P3rLaTgp/cJ600eLr6S4CXVkFXu2KfMYun0JNakvNZAhuoFkGOGA6Uui+FLSCSOWQF2U5APQVak1qBIlka2kdHHDKOKLTxBZyOFWMqwPOTVc7MXh43OlleGTlvv4wvoKzZ7GKeQiQlgOeOgqzaz293gb9p960ba1tgfmwx7mobbN4wSRjQ2UUZPlLge1aFvbuSDjH1rbisbWVMBQDUqW4jYJ1UVKQNJHsFcF8bdMlvvAtxcwcyWMiXBGM5QHDfoc/hXe1X1Gyj1LT7mylAMdxE0TZ9CMV3nzqdnc+SlYsoI4DDNFzAkUTSSPtGKWSOfSdUudMu0Ilt3MZyOmDTdWj+1W6KOFzyaykj1Kc9CHSNKa7uhLLGRCDkEjrXUOwjUKigAVmi8SKCNVICqoHFQm6WR8sx9qmxbmiaV2MhZRg+o7Vly3OowXO5HLDPar5lJ+Ud+9OtIk8xgSsjHjAPSnyhGZp6frm+E+dJs2jnNZt748jtXZYJmcDrxThp8CuyyPlSfujrVe70WyZdxVGHUBetJo0VRhbeMrmX53mfb2FXbfxJfSZ2uzb+ADVJNKhXY/wBnxnkVZt7eZbseUm2Necms2jSM2iwIpJrgPcqSx5q+lpBJyyqcdeKicyli3yBsdTT7HYCd8iE9wDSDnNJYYCgUBdvpisTVvC0UzedZsIZeuOxrSunUR/LPGnrzzXO33iuGLUI7USo2OuDzRYOfuMt9Qu9KnWO7jIGcbu1ddaS+cqkHGe4qjDJZazbPBcIMOvyseoNR+GC8EsthKSWhOVJ7ikx81zdE0kR4J4qWHVSG2u+T6ZpXOAcAH2rlNTcR6oCjlTnOBQS27H1BRRRXaeAeWfFv4cHVg2v6VEPtSL/pMajmRQPvD3HevFFVvKeGZvpmvr6vHfid8Kp5LibWtBg8xW+eW1jHIPcqPT2otc2p1LaM8ZkbyF2Hoe9ULye7UlrdC6gZwKuXNzkmKRCrqcMD2qS34KspX3z3rNpo6076mAvizY5iuG8tumDWpBrDxBXVHXPIbHWoPFnhOK9AvIYjvHzErWj4euoZ7EQ3IVXhGPm7ig0SFPip9+yYZHqF5qQa7GjhlCtmun0mDTpv30UEUgYYLbQagh0DTz4ot2MSiHlinYmkzWMkZP8AalyR5nlsEPtxV19B8Q3GnSajF8sSjcBnkiuy1u0tbrQ5oYUSFw67MDnrXTXNvHBo8lqACwgAIHrisWxuokeWaP4W1vU7cTSz+UpGRuPWmtpNzaW800lwi+WcH3rpL7xRb+GfDD3N84QKCqL3avNNY8UXfinTktdLheBXfLSnuKIhzGL8QNVuLO3i+zTsHfrtNc34X0PVNSv4buUyiLdku2ea9I0jwTFetG9+5n2Yzu6ZrtItGhW28m3iWNFHGBVi5W9TFsLiOL92mW2L1961tDizvupziUnAJ9KzINPNlJI8joisep71otOI7TzSV2qOPeplqWtDeULLCzBwDiuVvLWZr/IUsxNVINanlm2EHB6YrSgndZgX5IpJA3ofTtFFFdZ4QUUUUAcf4p+FXhvxVI089sbW6Y5aa2wpb6jGDXC6h+z/AHUW9tN1W3kUfcSeMqT9SM/yruPiL8WfC/wysvN1q83XbqWgsYPmnm+g7D3OBXzd4h/aD+JPxAuZk8M7fD2mA/KIQGlI/wBqQjr/ALuKdmylNrY6zUvCev8AhaJf7Zs0igmYomHVskfQ1x2raHgu9uGUMOgqp4a1nxJNqQt/E/iG81Pd/q1uZzJtPtk1113ay+V1Ax0qGjspVW9GcN4d1G78L3xDu8lqx+dCeldUfGGlx3sdwrsSTjHpRJb2b8XEAZWHJHXNR2ek6MzuPKGO2e9S1c6VqdNeeJNNazjkku0QghguetYniL41gWk1hpdjK95INgkxx9aoXmgadIwzbSMo6baW10mNGBjtgn91iOaycB+z1MLTtE1fxC0beILppBH8yR9h9a7bT9ItrOEIkSgYxwKWGwFnGJXyXPpUlpqHmXIidQq+tCibRSRfiWG2gz90D9ankupGRIosDeO/Wmz2IbaW/eRMfyrQns4mVTbrh1XvVcopT6GTfWBktzHNCzntisq8RktBBKTHHjABFdVdI81ohMm2ZRWQkLXSBb5Q6o3BFIycjA021WKTaRuHUMeorpbW3+0IAVG3+8Kzzaf6axjGI88D2rXhnS2RYVj4oBvQ+hKK4v4g/F3wp8N4SusX6vfsm+Kwh+aZx2OP4R7nFfLnxA/aL8Y+NpJrayuP7E0psqLe1b944/2pOv4DArrjBs8Zux9Q+OfjH4Q8BQyjUNTiuL6MDFjbMHmYn1Gfl/HFfPvjf9qnxRrayWvh20i0O1bjzifMuCPqeF/AfjXhxZmYszFmJyWJyTTS5JxmtlSSJ5ie9uLrWNRNzeXEtzcStmWaZyzt9Sea6Q6ldOsGl6QwjUAbtoxXJhivIODV3SNROm3sVxySp596zqX6F01d2Z6h4K8BP4l8W6Nos+qXVhJdmZnuoFVnXZEWAG4EckV3XjTwtqnw1v4bO81S41jTr+Jms725jRXSdAS0LbAByvzKcc4YdqofCDUI9S+JXheePoRd/wDpO1fQXjrwnYeP/DGoeH7iVVkdQY5VwXtZgMxyD0IOD7jI71ijST5ZaHz34h+Hs/hn4faL42fxTqV7JemzaazmhiEWJgNwG1Q3GeOe1JP8NLiz+EcHxDHivVHuWs4b42TQw+SS7LlOF3Yw3rmu++MWlXGj/A3RNKugpuLSXTreXYcgspVTj2yKi1Bgv7KNqzDgaNaE/wDfUdMXPLucn8PfAWt/EyS6uRqcui6DaymDz4EVp7qUfeVNwIVF6FsEk8DoTXU+IfgHqOiadLfeE/Eep6hdQKXOnaoySpdY6qrgAox7HkZ6jvVvTb+68O/surqOmS/ZbttIa4SVOqSSsSWHvlyfrXl/gP4vL8GZrywure91izvkjljie/QGGVdwdv3pzhgV6cZWlYp1Zt81zb8A+FH+LWo6mYfE+qaRa6fb2pSK2iiJLyCQsH3qSCNgGPrXZp+ze8cm9PiB4gDevkW5/wDZKzv2ZdQi1fW/HOpwW620N7cQXMcIkWTy1d7hgu5eCRntVnXf2Z7nW9av9THxJ8T2ovLiScQROdkW5ido+boM4p2E6sm73MHT4rvTbnXNCu7+bUjpeoNbxXUyKsjLsRhuCgD+I9qvXGpQwIGlcI2MYHevOfC2sx6Hov2VZ3lneSQ3FxNIWeWQMVLEkk5O0VBf6xqc02+GMyR/3z/Ss5M7IT91XOm1LxUJLpY4xjy+9M/tiaYklwvsK4+MXUuWeMgnnNWobe5Y4MjKKybNDq7XV5GbGBx1NXY78ynDYAFcxYxSRNuaXj3rcVF8sNvGPShFpHz7qep3utajcalqV1Ld3t0/mTTytlpG9T/LHQCq1FFekeIOJA6U3n1oop3ATkdOaWiigadj1n9mm+ll+LWh2rf6tI7px/35YV6/rnjufwJ8fdSnuZj/AGFe21lbXynpASrbJ/op4b/ZbPavlPR9a1Pw9qMWpaPf3Gn3sQYJcW7bXUMMEZ9xXeeF/EF34iuru513VZdQvblFR5bpgzOqjAB9sE1z1Fy6m0P3krM+lv2inT/hXsLMwCf2pZ854/1grA1JN37KFuh4zo1qv0+ZK8huNO1G5sItLufEevXOkwyJJHYy3e+FdjblABGcA470sdjfDTo9JPiPxDLpUe0DT5L0mDarZC7cfdBA4rH2qNfq89j2n4Vw6b45+D958P7u6Edzp8Mml3KofnjQkmGUD0KlSPcEdqsfDj4RW3wzt9Y1vxfq+n6vI8SgzyWojitoI9zE/MTyc5J9hXiotNmopqdne3mmajGNq3dlO0Um3OcHHDD2YEVJrB1fxFsTXvEmtavChysFzPiHPuigBvxzS9qhvDSvoej/ALM05v8AxD491IQLbxahc295BEq7QkUjTsgx24wcUzxH+zj4y1rX9R1O2+LWr2MF3cyTx2yLLthVmJCDEwGBnHQV57CNSsJ5bjTda1XTHnVVl+xXLRCQLnbkDrjJqZdW8VZz/wAJj4lZf+whJ/jT9qhPDSOM1rwHqPhLWNU0L+0G1E6Xc+UbgRlPNyivnGTz8/rW/oV8txYiKQFGTg5q5Gsgnnmlubm5ubh/MmmuZTI8jYAySevAA/ClVIlc7lCk+1ZSldnVCm0lchlvrS3fymk5+laFlElwm9XVlNVWsopSB5QYHvipRYtbL+6BA9qhmqTRJd2oQblb8KbbS3MjiMHj0qNZl5Vi2af50tsysOF/nQUf/9k="
-      alt="nice"
-    />
-    <button onclick="pop()">Press me</button>
+    <header>
+      <svg
+        class="logo"
+        width="34"
+        height="34"
+        viewBox="0 0 34 34"
+        aria-hidden="true"
+      >
+        <rect width="34" height="34" rx="8" fill="#2c2c2e" />
+        <circle cx="11" cy="12" r="3" fill="#ff453a" />
+        <circle cx="8" cy="16" r="2" fill="#ff453a" />
+        <circle cx="14" cy="16" r="2" fill="#ff453a" />
+        <circle cx="24" cy="10" r="3" fill="#ff9f0a" />
+        <circle cx="27" cy="14" r="2" fill="#ff9f0a" />
+        <circle cx="18" cy="25" r="3" fill="#0a84ff" />
+        <circle cx="12" cy="26" r="2" fill="#0a84ff" />
+        <circle cx="24" cy="26" r="2" fill="#0a84ff" />
+      </svg>
+      <div>
+        <h1>K-Means Clustering</h1>
+        <p>
+          Groups photos by location with no labels at all. Drop k centers, give
+          every photo to its nearest center, move each center to the mean of its
+          photos, and repeat until nothing moves. Run several tries and keep the
+          tightest one.
+        </p>
+      </div>
+      <div class="menu-right">
+        <a
+          href="https://www.tiktok.com/@machinelearningtogo/video/7691252907978624288"
+          target="_blank"
+          rel="noopener"
+          >Inspired by @machinelearningtogo</a
+        >
+        <span id="clock"></span>
+      </div>
+    </header>
+
+    <main>
+      <!--LEFT-->
+      <div class="col">
+        <section class="win" aria-label="Data canvas">
+          <div class="tb">
+            <div class="lights"><i></i><i></i><i></i></div>
+            <div class="title"><b>Map</b> photos.canvas</div>
+          </div>
+          <div class="toolbar">
+            <div class="seg" role="group" aria-label="Tool">
+              <button data-tool="point">Point</button>
+              <button data-tool="spray" class="on">Spray</button>
+              <button data-tool="erase">Erase</button>
+            </div>
+            <button class="btn small" id="pTrips">Three trips</button>
+            <button class="btn small" id="pBlobs">Random blobs</button>
+            <button class="btn small" id="pClear">Clear</button>
+            <span
+              id="count"
+              style="
+                margin-left: auto;
+                color: var(--muted);
+                font: 12px var(--mono);
+              "
+            ></span>
+          </div>
+          <canvas id="map"></canvas>
+          <div class="legend">
+            <span>Left-click to add. Right-click a photo to delete it.</span>
+            <label
+              ><input type="checkbox" id="showTerr" checked /> Territory</label
+            >
+            <label
+              ><input type="checkbox" id="showTrail" checked /> Center
+              paths</label
+            >
+            <label
+              ><input type="checkbox" id="showMap" checked /> Map texture</label
+            >
+          </div>
+        </section>
+
+        <section class="win" aria-label="Hyperparameters and controls">
+          <div class="tb">
+            <div class="lights"><i></i><i></i><i></i></div>
+            <div class="title"><b>Controls</b> settings</div>
+          </div>
+          <div class="wb">
+            <div class="sub">Brush</div>
+            <div class="grid2">
+              <div class="param">
+                <label for="nozzle">Nozzle size</label
+                ><input
+                  type="range"
+                  id="nozzle"
+                  min="4"
+                  max="70"
+                  value="26"
+                /><output id="oNozzle">26</output>
+              </div>
+              <div class="param">
+                <label for="density">Density</label
+                ><input
+                  type="range"
+                  id="density"
+                  min="1"
+                  max="20"
+                  value="6"
+                /><output id="oDensity">6</output>
+              </div>
+            </div>
+
+            <div class="sub">Hyperparameters</div>
+            <div class="grid2">
+              <div class="param">
+                <label for="k">Groups (k)</label
+                ><input type="range" id="k" min="2" max="8" value="3" /><output
+                  id="oK"
+                  >3</output
+                >
+              </div>
+              <div class="param">
+                <label for="R">Tries</label
+                ><input
+                  type="range"
+                  id="R"
+                  min="1"
+                  max="15"
+                  value="10"
+                /><output id="oR">10</output>
+              </div>
+              <div class="param">
+                <label for="init">Start</label>
+                <select id="init">
+                  <option value="random">Random photos</option>
+                  <option value="pp">K-Means++</option></select
+                ><span></span>
+              </div>
+              <div class="param">
+                <label for="seed">Seed</label>
+                <div class="seedrow">
+                  <input type="number" id="seed" value="17" min="0" /><button
+                    class="btn small"
+                    id="dice"
+                    title="New random seed"
+                  >
+                    New
+                  </button>
+                </div>
+                <span></span>
+              </div>
+              <div class="param">
+                <label for="speed">Speed (ms/line)</label
+                ><input
+                  type="range"
+                  id="speed"
+                  min="20"
+                  max="600"
+                  step="10"
+                  value="140"
+                /><output id="oSpeed">140</output>
+              </div>
+            </div>
+
+            <div class="sub">Run</div>
+            <div class="btnrow">
+              <button class="btn primary" id="bLine">Step line</button>
+              <button class="btn" id="bRound">Step round</button>
+              <button class="btn" id="bPlay">Play until convergence</button>
+              <button class="btn" id="bAll">Run all tries</button>
+              <button class="btn" id="bReset">Reset</button>
+            </div>
+            <div class="cap" style="margin: 10px 0 0">
+              <span class="kbd">Space</span> steps one line.
+              <span class="kbd">Enter</span> plays or pauses. Same seed and same
+              data give the same run.
+            </div>
+            <div class="status" id="status"></div>
+          </div>
+        </section>
+      </div>
+
+      <!--RIGHT-->
+      <div class="col">
+        <section class="win" aria-label="Code">
+          <div class="tb">
+            <div class="lights"><i></i><i></i><i></i></div>
+            <div class="title"><b>Code</b> kmeans.py</div>
+          </div>
+          <div class="code" id="code"></div>
+          <div class="vars" id="vars"></div>
+        </section>
+
+        <section class="win" aria-label="Model state">
+          <div class="tb">
+            <div class="lights"><i></i><i></i><i></i></div>
+            <div class="title"><b>Model state</b> variables</div>
+          </div>
+          <div class="wb">
+            <div class="sub">C: centers (k x 2)</div>
+            <div class="tablewrap" id="cTable"></div>
+            <div class="sub">
+              d: squared distance from each photo to each center
+            </div>
+            <div class="tablewrap" id="dTable"></div>
+            <div class="sub">Tries: final spread s of each try</div>
+            <div class="tries" id="tries"></div>
+            <div class="cap" style="margin: 8px 0 0" id="triesCap">
+              Each bar is one try. Green is the lowest s, kept by line 15. Red
+              tries got stuck in a worse grouping.
+            </div>
+          </div>
+        </section>
+
+        <section class="win" aria-label="Loss graph">
+          <div class="tb">
+            <div class="lights"><i></i><i></i><i></i></div>
+            <div class="title"><b>Loss</b> wcss.chart</div>
+          </div>
+          <div class="wb">
+            <div class="cap">
+              WCSS (within-cluster sum of squares) is recorded at line 10 of
+              every round. Inside one try it can only go down.
+            </div>
+            <canvas id="loss"></canvas>
+            <div class="lleg">
+              <span><i style="background: var(--blue)"></i>Current try</span>
+              <span><i style="background: var(--green)"></i>Best so far</span>
+              <span><i style="background: #5c5c62"></i>Other tries</span>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer>
+      <span class="grp">Group LarbUbon</span>
+      <span class="mem">
+        <span>Harris Suteerapornchai<em>67011115</em></span>
+        <span>Chanathip Jesdapairote<em>67011091</em></span>
+        <span>Supanut Chomthong<em>67011315</em></span>
+        <span>Thanakorn Sa-Nguannam<em>67011332</em></span>
+        <span>Paphada Borisutsukkamol<em>67011634</em></span>
+      </span>
+      <span class="org">CEi KMITL</span>
+    </footer>
+
     <script>
-      var audio = null;
-      function pop() {
-        if (!audio) audio = new AudioContext();
-        var osc = audio.createOscillator();
-        var gain = audio.createGain();
-        var t = audio.currentTime;
-        osc.frequency.setValueAtTime(600, t);
-        osc.frequency.exponentialRampToValueAtTime(120, t + 0.08);
-        gain.gain.setValueAtTime(0.4, t);
-        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
-        osc.connect(gain);
-        gain.connect(audio.destination);
-        osc.start(t);
-        osc.stop(t + 0.11);
+      //setup
+      const WX = 100,
+        WY = 70; // world size: the map is 100 x 70 "km"
+      const MAXP = 2500; // photo cap so the page stays smooth
+      const CAP = 200; // safety cap on rounds per try
+      const PAL = [
+        [255, 69, 58],
+        [255, 159, 10],
+        [10, 132, 255],
+        [48, 209, 88],
+        [191, 90, 242],
+        [255, 214, 10],
+        [255, 55, 95],
+        [100, 210, 255],
+      ];
+      const GRAY = [142, 142, 147];
+      const rgb = (c, a = 1) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+      const $ = (id) => document.getElementById(id);
+
+      let pts = []; // photos: {x, y}
+      let tool = "spray";
+      let rng = Math.random;
+      let S,
+        disp = []; // algorithm state + animated pin positions
+      let timer = null;
+
+      const P = () => ({
+        k: +$("k").value,
+        R: +$("R").value,
+        init: $("init").value,
+        seed: Math.abs(parseInt($("seed").value, 10) || 0),
+        speed: +$("speed").value,
+      });
+
+      function mulberry32(a) {
+        return function () {
+          a |= 0;
+          a = (a + 0x6d2b79f5) | 0;
+          let t = Math.imul(a ^ (a >>> 15), 1 | a);
+          t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+          return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
       }
+      function gauss(r = Math.random) {
+        let u = 0;
+        while (!u) u = r();
+        return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * r());
+      }
+      const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+      function fmt(v) {
+        if (v === Infinity) return "inf";
+        if (v == null) return "-";
+        return Math.abs(v) >= 1000
+          ? Math.round(v).toLocaleString("en-US")
+          : v.toFixed(1);
+      }
+
+      //data preset: three trips, blobs, or blank
+      const coastY = (x) => 60 + 2.5 * Math.sin(x / 9);
+
+      function threeTrips() {
+        // fixed seed: the same 600 photos every time, so a demo seed is reproducible
+        const r = mulberry32(2026),
+          g = () => gauss(r),
+          a = [];
+        for (let i = 0; i < 250; i++)
+          a.push({ x: 24 + g() * 5.5, y: 24 + g() * 5 }); // city
+        for (let i = 0; i < 200; i++) {
+          const x = 38 + r() * 50;
+          a.push({ x, y: coastY(x) - 2.8 + g() * 1.3 });
+        } // coast
+        for (let i = 0; i < 150; i++) {
+          // mountain trail
+          const t = r();
+          a.push({
+            x: 58 + t * 32 + g() * 1.5,
+            y: 34 - t * 26 - 4 * Math.sin(Math.PI * t) + g() * 1.5,
+          });
+        }
+        return a.map((p) => ({
+          x: clamp(p.x, 1, WX - 1),
+          y: clamp(p.y, 1, WY - 1),
+        }));
+      }
+
+      function blobs() {
+        const k = P().k,
+          a = [];
+        const cs = Array.from({ length: k }, () => ({
+          x: 12 + Math.random() * 76,
+          y: 10 + Math.random() * 50,
+          s: 3 + Math.random() * 4,
+        }));
+        for (let i = 0; i < 360; i++) {
+          const c = cs[i % k];
+          a.push({
+            x: clamp(c.x + gauss() * c.s, 1, WX - 1),
+            y: clamp(c.y + gauss() * c.s, 1, WY - 1),
+          });
+        }
+        return a;
+      }
+
+      //python code lines for display
+      function pad(code, comment) {
+        return (
+          (code.length >= 40 ? code + "  " : code.padEnd(40)) + "# " + comment
+        );
+      }
+      function codeLines() {
+        const { k, R, init } = P();
+        return [
+          "import numpy as np",
+          pad("X = photos", `${pts.length} photos, (x, y) each`),
+          pad(`k = ${k}`, "number of groups"),
+          pad("best = np.inf", "no try yet"),
+          pad(`for start in range(${R}):`, `${R} random starts`),
+          init === "pp"
+            ? pad("    C = kmeans_pp(X, k, rng)", "spread-out start")
+            : "    C = X[rng.choice(len(X), k, replace=False)]",
+          "    while True:",
+          pad("        old = C.copy()", "remember centers"),
+          pad("        d = ((X[:, None] - C) ** 2).sum(2)", "squared"),
+          pad("        g = d.argmin(1)", "nearest center"),
+          "        for j in range(k):",
+          pad("            C[j] = X[g == j].mean(0)", "move to mean"),
+          pad("        if (C == old).all(): break", "nothing moved"),
+          pad("    s = d.min(1).sum()", "total spread"),
+          "    if s < best: best, keep = s, g",
+          pad("print(np.bincount(keep))", "photos per group"),
+        ];
+      }
+      const esc = (s) =>
+        s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      function highlight(src) {
+        const ci = src.indexOf("#");
+        const code = ci >= 0 ? src.slice(0, ci) : src,
+          com = ci >= 0 ? src.slice(ci) : "";
+        const body = esc(code).replace(
+          /\b(import|as|for|in|while|True|False|None|if|break)\b|\b(\d+)\b|\b(range|len|copy|sum|argmin|mean|min|choice|bincount|inf|all|print|kmeans_pp)\b|\b(np|rng)\b/g,
+          (m, kw, nu, fn, md) =>
+            kw
+              ? `<span class="kw">${kw}</span>`
+              : nu
+                ? `<span class="nu">${nu}</span>`
+                : fn
+                  ? `<span class="fn">${fn}</span>`
+                  : `<span class="md">${md}</span>`,
+        );
+        return (
+          `<span class="pl">${body}</span>` +
+          (com ? `<span class="cm">${esc(com)}</span>` : "")
+        );
+      }
+
+      let lineEls = [],
+        noteEl = null;
+      function renderCode() {
+        const box = $("code");
+        box.innerHTML = "";
+        lineEls = codeLines().map((src, i) => {
+          const d = document.createElement("div");
+          d.className = "ln";
+          d.innerHTML = `<span class="no">${i + 1}</span>${highlight(src)}`;
+          box.appendChild(d);
+          return d;
+        });
+        noteEl = document.createElement("div");
+        noteEl.className = "note";
+      }
+
+      function freshState() {
+        S = {
+          gen: null,
+          line: 0,
+          note: "",
+          done: false,
+          k: P().k,
+          R: P().R,
+          C: [],
+          old: null,
+          g: null,
+          d: null,
+          start: null,
+          j: null,
+          round: 0,
+          best: Infinity,
+          s: null,
+          keep: null,
+          bestC: null,
+          bestTrails: null,
+          bestTry: -1,
+          tries: [],
+          cur: -1,
+          trails: [],
+          changed: null,
+          moved: null,
+          wcss: null,
+          pulse: 0,
+          ran: new Set(),
+          counts: null,
+        };
+        disp = [];
+      }
+      function at(line, note) {
+        S.line = line;
+        S.note = note;
+        S.ran.add(line);
+        return line;
+      }
+
+      function pickRandom(N, k) {
+        // rng.choice(len(X), k, replace=False)
+        const ids = [];
+        while (ids.length < k) {
+          const r = Math.floor(rng() * N);
+          if (!ids.includes(r)) ids.push(r);
+        }
+        return ids;
+      }
+      function kmeansPP(X, k) {
+        // first center random, then far photos are more likely
+        const N = X.length,
+          ids = [Math.floor(rng() * N)];
+        const D = new Float64Array(N).fill(Infinity);
+        while (ids.length < k) {
+          const c = X[ids[ids.length - 1]];
+          let tot = 0;
+          for (let i = 0; i < N; i++) {
+            D[i] = Math.min(D[i], (X[i].x - c.x) ** 2 + (X[i].y - c.y) ** 2);
+            tot += D[i];
+          }
+          let r = rng() * tot,
+            i = 0;
+          while (i < N - 1 && r > D[i]) {
+            r -= D[i];
+            i++;
+          }
+          if (ids.includes(i)) i = (i + 1) % N;
+          ids.push(i);
+        }
+        return ids;
+      }
+      function focusIdx() {
+        if (hover >= 0 && hover < pts.length) return hover;
+        return 0;
+      }
+
+      function* algo() {
+        const { k, R, init, seed } = P();
+        const X = pts,
+          N = X.length;
+        rng = mulberry32(seed);
+        S.k = k;
+        S.R = R;
+
+        yield at(1, "numpy loaded, it does the array math below");
+        yield at(
+          2,
+          `X holds ${N} photos, shape (${N}, 2): one (x, y) location each`,
+        );
+        yield at(
+          3,
+          `k = ${k}: we want ${k} groups, the algorithm never sees the real trips`,
+        );
+        S.best = Infinity;
+        yield at(4, "best = inf, so the first finished try always wins");
+
+        for (let t = 0; t < R; t++) {
+          S.start = t;
+          S.cur = t;
+          S.round = 0;
+          S.j = null;
+          S.s = null;
+          S.changed = null;
+          S.moved = null;
+          S.tries.push({ loss: [], s: null, rounds: 0 });
+          S.g = new Int16Array(N).fill(-1);
+          S.C = [];
+          S.old = null;
+          S.d = null;
+          S.trails = [];
+          S.ran = new Set();
+          yield at(5, `start = ${t}: try ${t + 1} of ${R} begins`);
+
+          const ids = init === "pp" ? kmeansPP(X, k) : pickRandom(N, k);
+          S.C = ids.map((i) => ({ x: X[i].x, y: X[i].y }));
+          S.trails = S.C.map((c) => [{ ...c }]);
+          disp = S.C.map((c) => ({ ...c }));
+          yield at(
+            6,
+            (init === "pp"
+              ? "K-Means++ picked photos "
+              : "picked random photos ") +
+              ids.map((i) => "#" + i).join(", ") +
+              " as the starting centers",
+          );
+
+          while (true) {
+            S.ran = new Set([5, 6]);
+            yield at(7, `round ${S.round + 1} starts`);
+
+            S.old = S.C.map((c) => ({ ...c }));
+            yield at(8, "saved a copy of C, line 13 compares against it");
+
+            S.d = new Float64Array(N * k);
+            for (let i = 0; i < N; i++)
+              for (let j = 0; j < k; j++)
+                S.d[i * k + j] =
+                  (X[i].x - S.C[j].x) ** 2 + (X[i].y - S.C[j].y) ** 2;
+            const f = focusIdx();
+            const row = [];
+            let fb = 0;
+            for (let j = 0; j < k; j++) {
+              row.push(S.d[f * k + j].toFixed(1));
+              if (S.d[f * k + j] < S.d[f * k + fb]) fb = j;
+            }
+            yield at(
+              9,
+              `d is a ${N} x ${k} matrix. Photo #${f}: d = [${row.join(", ")}], smallest is C${fb + 1}`,
+            );
+
+            let changed = 0,
+              w = 0;
+            for (let i = 0; i < N; i++) {
+              let b = 0;
+              for (let j = 1; j < k; j++)
+                if (S.d[i * k + j] < S.d[i * k + b]) b = j;
+              if (S.g[i] !== b) changed++;
+              S.g[i] = b;
+              w += S.d[i * k + b];
+            }
+            S.changed = changed;
+            S.wcss = w;
+            S.tries[t].loss.push(w);
+            yield at(
+              10,
+              S.round === 0
+                ? `every photo joined its nearest center. WCSS = ${fmt(w)}`
+                : `${changed} photo(s) switched group. WCSS = ${fmt(w)}`,
+            );
+
+            for (let j = 0; j < k; j++) {
+              S.j = j;
+              yield at(11, `j = ${j}: now moving center C${j + 1}`);
+              let sx = 0,
+                sy = 0,
+                n = 0;
+              for (let i = 0; i < N; i++)
+                if (S.g[i] === j) {
+                  sx += X[i].x;
+                  sy += X[i].y;
+                  n++;
+                }
+              if (n > 0) {
+                S.C[j] = { x: sx / n, y: sy / n };
+                const mv = Math.hypot(
+                  S.C[j].x - S.old[j].x,
+                  S.C[j].y - S.old[j].y,
+                );
+                if (mv > 0) S.trails[j].push({ ...S.C[j] });
+                yield at(
+                  12,
+                  `C${j + 1} = (${sx.toFixed(0)} / ${n}, ${sy.toFixed(0)} / ${n}) = (${S.C[j].x.toFixed(2)}, ${S.C[j].y.toFixed(2)}), moved ${mv.toFixed(2)}`,
+                );
+              } else {
+                yield at(
+                  12,
+                  `group ${j + 1} has no photos. The mean of nothing is undefined (numpy gives nan), so C${j + 1} stays put`,
+                );
+              }
+            }
+            S.j = null;
+            S.round++;
+            S.tries[t].rounds = S.round;
+            const moved = S.C.filter(
+              (c, j) => c.x !== S.old[j].x || c.y !== S.old[j].y,
+            ).length;
+            S.moved = moved;
+            if (moved === 0) S.pulse = performance.now();
+            const stop = moved === 0 || S.round >= CAP;
+            yield at(
+              13,
+              moved === 0
+                ? "C == old for every center: nothing moved, break"
+                : S.round >= CAP
+                  ? "safety cap reached, break"
+                  : `${moved} center(s) moved: loop for another round`,
+            );
+            if (stop) break;
+          }
+
+          let s = 0;
+          for (let i = 0; i < N; i++) {
+            let m = Infinity;
+            for (let j = 0; j < k; j++) m = Math.min(m, S.d[i * k + j]);
+            s += m;
+          }
+          S.s = s;
+          S.tries[t].s = s;
+          yield at(14, `s = ${fmt(s)} after ${S.round} rounds`);
+
+          if (s < S.best) {
+            const prev = S.best;
+            S.best = s;
+            S.keep = S.g.slice();
+            S.bestC = S.C.map((c) => ({ ...c }));
+            S.bestTrails = S.trails.map((a) => a.map((p) => ({ ...p })));
+            S.bestTry = t;
+            yield at(
+              15,
+              prev === Infinity
+                ? `first finished try: best = ${fmt(s)}, keep this grouping`
+                : `${fmt(s)} < ${fmt(prev)}: new best, keep this grouping`,
+            );
+          } else {
+            yield at(
+              15,
+              `${fmt(s)} is not below best ${fmt(S.best)} (${(s / S.best).toFixed(2)}x worse): discard this try`,
+            );
+          }
+        }
+
+        S.g = S.keep;
+        S.C = S.bestC;
+        S.trails = S.bestTrails;
+        S.cur = S.bestTry;
+        S.j = null;
+        S.old = null;
+        for (let i = 0; i < N; i++)
+          for (let j = 0; j < k; j++)
+            S.d[i * k + j] =
+              (X[i].x - S.C[j].x) ** 2 + (X[i].y - S.C[j].y) ** 2;
+        const counts = new Array(k).fill(0);
+        for (const v of S.keep) counts[v]++;
+        S.counts = counts;
+        yield at(
+          16,
+          `[${counts.join(" ")}]  from try ${S.bestTry + 1}, the tightest of ${R}`,
+        );
+        S.done = true;
+      }
+
+      //run control
+      function ensureGen() {
+        if (S.gen) return true;
+        const k = P().k;
+        if (pts.length < k) {
+          setStatus(
+            `Need at least ${k} photos for k = ${k}. Spray some on the map.`,
+          );
+          return false;
+        }
+        S.gen = algo();
+        return true;
+      }
+      function stepLine() {
+        if (S.done || !ensureGen()) return false;
+        const r = S.gen.next();
+        if (r.done) S.done = true;
+        return !S.done;
+      }
+      function stepRound() {
+        stop();
+        if (!ensureGen()) return ui();
+        do {
+          stepLine();
+        } while (!S.done && S.line !== 13 && S.line < 14);
+        ui();
+      }
+      function play() {
+        if (timer) {
+          stop();
+          ui();
+          return;
+        }
+        if (S.done || !ensureGen()) {
+          ui();
+          return;
+        }
+        timer = setInterval(() => {
+          stepLine();
+          ui();
+          if (S.done || S.line === 14) {
+            stop();
+            ui();
+          }
+        }, P().speed);
+        ui();
+      }
+      function stop() {
+        clearInterval(timer);
+        timer = null;
+      }
+      function runAll() {
+        stop();
+        if (!ensureGen()) return ui();
+        let guard = 0;
+        while (!S.done && guard++ < 3e6) stepLine();
+        ui();
+      }
+      function resetRun() {
+        stop();
+        freshState();
+        renderCode();
+        ui();
+      }
+      function dataChanged() {
+        hover = -1;
+        resetRun();
+      }
+
+      let prevVars = {};
+      function ui() {
+        const k = S.k;
+
+        // code highlight + note
+        lineEls.forEach((el, i) => {
+          el.classList.toggle("active", S.line === i + 1);
+          el.classList.toggle("ran", S.line !== i + 1 && S.ran.has(i + 1));
+        });
+        if (S.line > 0) {
+          noteEl.textContent = "→ " + S.note;
+          lineEls[S.line - 1].after(noteEl);
+        } else noteEl.remove();
+
+        // variables
+        const vars = [
+          ["k", S.k],
+          ["start", S.start ?? "-"],
+          ["round", S.round],
+          ["j", S.j ?? "-"],
+          ["changed", S.changed ?? "-"],
+          ["s", fmt(S.s)],
+          ["best", fmt(S.best)],
+        ];
+        $("vars").innerHTML = vars
+          .map(
+            ([n, v]) =>
+              `<span class="var${prevVars[n] !== undefined && prevVars[n] !== String(v) ? " flash" : ""}"><span>${n} =</span> ${v}</span>`,
+          )
+          .join("");
+        vars.forEach(([n, v]) => (prevVars[n] = String(v)));
+        requestAnimationFrame(() =>
+          document
+            .querySelectorAll(".var.flash")
+            .forEach((e) => e.classList.remove("flash")),
+        );
+
+        // C table
+        if (S.C.length) {
+          const counts = new Array(k).fill(0);
+          if (S.g) for (const v of S.g) if (v >= 0) counts[v]++;
+          const N = Math.max(pts.length, 1);
+          $("cTable").innerHTML =
+            `<table><tr><th>Center</th><th>x</th><th>y</th><th>Photos</th><th>Moved</th></tr>` +
+            S.C.map((c, j) => {
+              const mv = S.old
+                ? Math.hypot(c.x - S.old[j].x, c.y - S.old[j].y)
+                : 0;
+              return `<tr class="${S.j === j ? "act" : ""}"><td><span class="sw" style="background:${rgb(PAL[j])}"></span>C${j + 1}</td>
+          <td>${c.x.toFixed(2)}</td><td>${c.y.toFixed(2)}</td>
+          <td><div class="cnt"><i style="width:${Math.round((counts[j] / N) * 90)}px;background:${rgb(PAL[j])}"></i>${counts[j]}</div></td>
+          <td>${mv.toFixed(2)}</td></tr>`;
+            }).join("") +
+            `</table>`;
+        } else
+          $("cTable").innerHTML =
+            `<div class="empty">Centers appear at line 6.</div>`;
+
+        // d table
+        if (S.d && pts.length) {
+          const N = pts.length,
+            rows = [];
+          if (hover >= 0) rows.push(hover);
+          for (let q = 0; rows.length < 5 && q < 5; q++) {
+            const i = Math.floor((q * N) / 5);
+            if (!rows.includes(i)) rows.push(i);
+          }
+          $("dTable").innerHTML =
+            `<table><tr><th>Photo</th>${S.C.map((c, j) => `<th>C${j + 1}</th>`).join("")}<th>argmin</th></tr>` +
+            rows
+              .map((i) => {
+                let b = 0;
+                for (let j = 1; j < k; j++)
+                  if (S.d[i * k + j] < S.d[i * k + b]) b = j;
+                return (
+                  `<tr class="${i === hover ? "act" : ""}"><td>#${i}</td>` +
+                  S.C.map(
+                    (c, j) =>
+                      `<td class="${j === b ? "min" : ""}" style="${j === b ? "color:" + rgb(PAL[j]) : ""}">${S.d[i * k + j].toFixed(1)}</td>`,
+                  ).join("") +
+                  `<td style="color:${rgb(PAL[b])}">C${b + 1}</td></tr>`
+                );
+              })
+              .join("") +
+            `</table><div class="cap" style="margin:6px 0 0">Showing ${rows.length} of ${N} rows. Hover a photo on the map to see its row.</div>`;
+        } else
+          $("dTable").innerHTML =
+            `<div class="empty">d is computed at line 9.</div>`;
+
+        // try board
+        const R = S.R,
+          done = S.tries.filter((t) => t.s != null).map((t) => t.s);
+        const maxS = done.length ? Math.max(...done) : 1;
+        let html = "";
+        for (let t = 0; t < R; t++) {
+          const tr = S.tries[t];
+          if (!tr || tr.s == null) {
+            html += `<div class="try pending${S.cur === t && !S.done ? " cur" : ""}"><div class="b"></div><small>T${t + 1}</small></div>`;
+            continue;
+          }
+          const ratio = tr.s / S.best;
+          const cls = t === S.bestTry ? "best" : ratio > 1.1 ? "stuck" : "";
+          html += `<div class="try ${cls}${S.cur === t ? " cur" : ""}" title="Try ${t + 1}: s = ${fmt(tr.s)}, ${tr.rounds} rounds">
+      <div class="b" style="height:${Math.max(4, (tr.s / maxS) * 62)}px"></div><small>${ratio.toFixed(1)}x</small></div>`;
+        }
+        $("tries").innerHTML = html;
+
+        drawLoss();
+
+        if (S.line === 0)
+          setStatus(
+            `<b>Ready.</b> ${pts.length} photos. Press Step line to run line 1.`,
+          );
+        else if (S.done)
+          setStatus(
+            `<b>Done.</b> Best of ${R} tries is try ${S.bestTry + 1}, s = ${fmt(S.best)}. Photos per group: [${S.counts.join(" ")}]`,
+          );
+        else
+          setStatus(
+            `<b>Try ${S.cur + 1} of ${R}</b>, round ${Math.max(S.round, 1)}, line ${S.line}: ${phase(S.line)}`,
+          );
+        $("bPlay").textContent = timer ? "Pause" : "Play until convergence";
+        ["bLine", "bRound", "bPlay", "bAll"].forEach(
+          (id) => ($(id).disabled = S.done && !timer),
+        );
+        $("count").textContent = `${pts.length} photos`;
+      }
+      function setStatus(h) {
+        $("status").innerHTML = h;
+      }
+      function phase(l) {
+        return (
+          {
+            1: "setup",
+            2: "setup",
+            3: "setup",
+            4: "setup",
+            5: "new try",
+            6: "drop the starting centers",
+            7: "next round",
+            8: "remember centers",
+            9: "measure distances",
+            10: "join the nearest center",
+            11: "move to the mean",
+            12: "move to the mean",
+            13: "did anything move?",
+            14: "score this try",
+            15: "keep the best try",
+            16: "best of all tries",
+          }[l] || ""
+        );
+      }
+
+      const lc = $("loss"),
+        lx = lc.getContext("2d");
+      function drawLoss() {
+        const dpr = window.devicePixelRatio || 1,
+          r = lc.getBoundingClientRect();
+        if (!r.width) return;
+        lc.width = r.width * dpr;
+        lc.height = r.height * dpr;
+        lx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        const W = r.width,
+          H = r.height,
+          L = 58,
+          Rp = 12,
+          T = 10,
+          B = 28,
+          gw = W - L - Rp,
+          gh = H - T - B;
+        lx.clearRect(0, 0, W, H);
+        lx.font = "11px ui-monospace, Menlo, Consolas, monospace";
+        const tries = S.tries.filter((t) => t.loss.length);
+        if (!tries.length) {
+          lx.fillStyle = "#5c5c62";
+          lx.fillText(
+            "No loss yet. The first value appears at line 10.",
+            L,
+            T + gh / 2,
+          );
+          return;
+        }
+        const maxR = Math.max(2, ...tries.map((t) => t.loss.length));
+        const maxV = Math.max(...tries.flatMap((t) => t.loss)) * 1.05;
+        const X = (i) => L + (i / (maxR - 1)) * gw,
+          Y = (v) => T + gh - (v / maxV) * gh;
+
+        lx.strokeStyle = "rgba(255,255,255,0.07)";
+        lx.fillStyle = "#98989f";
+        lx.lineWidth = 1;
+        for (let g = 0; g <= 4; g++) {
+          const v = (maxV * g) / 4,
+            y = Y(v);
+          lx.beginPath();
+          lx.moveTo(L, y);
+          lx.lineTo(L + gw, y);
+          lx.stroke();
+          lx.textAlign = "right";
+          lx.fillText(
+            v >= 1000 ? (v / 1000).toFixed(1) + "k" : v.toFixed(0),
+            L - 8,
+            y + 4,
+          );
+        }
+        lx.textAlign = "center";
+        const stepL = Math.ceil(maxR / 10);
+        for (let i = 0; i < maxR; i += stepL)
+          lx.fillText(i + 1, X(i), T + gh + 16);
+        lx.textAlign = "right";
+        lx.fillText("round", L + gw, H - 1);
+
+        const order = S.tries
+          .map((t, i) => i)
+          .filter((i) => S.tries[i].loss.length)
+          .sort(
+            (a, b) =>
+              (a === S.cur) - (b === S.cur) ||
+              (a === S.bestTry) - (b === S.bestTry),
+          );
+        for (const i of order) {
+          const d = S.tries[i].loss;
+          const isCur = i === S.cur && !S.done,
+            isBest = i === S.bestTry;
+          lx.strokeStyle = isCur
+            ? "#0a84ff"
+            : isBest
+              ? "#30d158"
+              : "rgba(142,142,147,0.35)";
+          lx.lineWidth = isCur ? 2.5 : isBest ? 2 : 1.2;
+          lx.beginPath();
+          d.forEach((v, j) =>
+            j ? lx.lineTo(X(j), Y(v)) : lx.moveTo(X(j), Y(v)),
+          );
+          lx.stroke();
+          if (isCur || (S.done && isBest)) {
+            lx.fillStyle = lx.strokeStyle;
+            d.forEach((v, j) => {
+              lx.beginPath();
+              lx.arc(X(j), Y(v), 3, 0, 7);
+              lx.fill();
+            });
+          }
+        }
+      }
+
+      // Map canvas
+      const cv = $("map"),
+        ctx = cv.getContext("2d");
+      const bg = document.createElement("canvas"),
+        bgx = bg.getContext("2d");
+      const terr = document.createElement("canvas"),
+        tx = terr.getContext("2d");
+      let W = 0,
+        H = 0,
+        dpr = 1;
+      let mouse = null,
+        down = false,
+        hover = -1,
+        brushTimer = null;
+
+      const toPx = (p) => ({ x: (p.x / WX) * W, y: (p.y / WY) * H });
+      const toW = (x, y) => ({ x: (x / W) * WX, y: (y / H) * WY });
+
+      function resize() {
+        dpr = window.devicePixelRatio || 1;
+        const r = cv.getBoundingClientRect();
+        W = r.width;
+        H = r.height;
+        cv.width = W * dpr;
+        cv.height = H * dpr;
+        bg.width = W * dpr;
+        bg.height = H * dpr;
+        drawBg();
+        drawLoss();
+      }
+
+      function drawBg() {
+        const c = bgx;
+        c.setTransform(dpr, 0, 0, dpr, 0, 0);
+        c.fillStyle = "#141619";
+        c.fillRect(0, 0, W, H);
+        if (!$("showMap").checked) return;
+        const sx = W / WX,
+          sy = H / WY;
+
+        c.strokeStyle = "rgba(255,255,255,0.025)";
+        c.lineWidth = 1; // 10 km grid
+        for (let x = 10; x < WX; x += 10) {
+          c.beginPath();
+          c.moveTo(x * sx, 0);
+          c.lineTo(x * sx, H);
+          c.stroke();
+        }
+        for (let y = 10; y < WY; y += 10) {
+          c.beginPath();
+          c.moveTo(0, y * sy);
+          c.lineTo(W, y * sy);
+          c.stroke();
+        }
+
+        c.beginPath(); // sea
+        for (let x = 0; x <= WX; x += 1) {
+          const y = coastY(x);
+          x ? c.lineTo(x * sx, y * sy) : c.moveTo(0, y * sy);
+        }
+        c.lineTo(W, H);
+        c.lineTo(0, H);
+        c.closePath();
+        c.fillStyle = "rgba(10,132,255,0.07)";
+        c.fill();
+        c.beginPath();
+        for (let x = 0; x <= WX; x += 1) {
+          const y = coastY(x);
+          x ? c.lineTo(x * sx, y * sy) : c.moveTo(0, y * sy);
+        }
+        c.strokeStyle = "rgba(100,210,255,0.22)";
+        c.lineWidth = 1.2;
+        c.stroke();
+        c.beginPath();
+        for (let x = 0; x <= WX; x += 1) {
+          const y = coastY(x + 6) + 4;
+          x ? c.lineTo(x * sx, y * sy) : c.moveTo(0, y * sy);
+        }
+        c.strokeStyle = "rgba(100,210,255,0.07)";
+        c.stroke();
+
+        c.save(); // city streets
+        c.beginPath();
+        c.arc(24 * sx, 24 * sy, 13 * sx, 0, 7);
+        c.clip();
+        c.strokeStyle = "rgba(255,255,255,0.045)";
+        for (let v = 8; v < 42; v += 2.6) {
+          c.beginPath();
+          c.moveTo(v * sx, 0);
+          c.lineTo(v * sx, H);
+          c.stroke();
+          c.beginPath();
+          c.moveTo(0, v * sy);
+          c.lineTo(W, v * sy);
+          c.stroke();
+        }
+        c.restore();
+
+        [
+          [68, 22, 5],
+          [77, 15, 6],
+          [88, 21, 5],
+          [64, 9, 4],
+          [84, 6, 5],
+          [94, 12, 4],
+        ].forEach(([x, y, s]) => {
+          // mountains
+          c.beginPath();
+          c.moveTo((x - s) * sx, (y + s * 0.8) * sy);
+          c.lineTo(x * sx, (y - s * 0.8) * sy);
+          c.lineTo((x + s) * sx, (y + s * 0.8) * sy);
+          c.closePath();
+          c.fillStyle = "rgba(255,255,255,0.025)";
+          c.fill();
+          c.strokeStyle = "rgba(255,255,255,0.09)";
+          c.stroke();
+        });
+        c.setLineDash([3, 4]);
+        c.strokeStyle = "rgba(255,255,255,0.10)"; // trail
+        c.beginPath();
+        for (let t = 0; t <= 1.001; t += 0.05) {
+          const x = 58 + t * 32,
+            y = 34 - t * 26 - 4 * Math.sin(Math.PI * t);
+          t ? c.lineTo(x * sx, y * sy) : c.moveTo(x * sx, y * sy);
+        }
+        c.stroke();
+        c.setLineDash([]);
+
+        c.font = "11px ui-monospace, Menlo, Consolas, monospace";
+        c.fillStyle = "rgba(255,255,255,0.18)";
+        c.fillText("city", 34 * sx, 40 * sy);
+        c.fillText("coast", 80 * sx, 66 * sy);
+        c.fillText("trail", 92 * sx, 33 * sy);
+        c.strokeStyle = "rgba(255,255,255,0.35)";
+        c.lineWidth = 1.5; // scale bar
+        c.beginPath();
+        c.moveTo(14, H - 14);
+        c.lineTo(14 + 10 * sx, H - 14);
+        c.moveTo(14, H - 18);
+        c.lineTo(14, H - 10);
+        c.moveTo(14 + 10 * sx, H - 18);
+        c.lineTo(14 + 10 * sx, H - 10);
+        c.stroke();
+        c.fillStyle = "rgba(255,255,255,0.45)";
+        c.fillText("10 km", 18, H - 22);
+      }
+
+      function drawTerritory() {
+        const cell = 5,
+          cols = Math.ceil(W / cell),
+          rows = Math.ceil(H / cell);
+        if (terr.width !== cols || terr.height !== rows) {
+          terr.width = cols;
+          terr.height = rows;
+        }
+        const img = tx.createImageData(cols, rows),
+          a = img.data,
+          k = disp.length;
+        for (let r = 0; r < rows; r++) {
+          const wy = (((r + 0.5) * cell) / H) * WY;
+          for (let c = 0; c < cols; c++) {
+            const wx = (((c + 0.5) * cell) / W) * WX;
+            let b = 0,
+              bd = Infinity;
+            for (let j = 0; j < k; j++) {
+              const d = (wx - disp[j].x) ** 2 + (wy - disp[j].y) ** 2;
+              if (d < bd) {
+                bd = d;
+                b = j;
+              }
+            }
+            const o = (r * cols + c) * 4,
+              col = PAL[b];
+            a[o] = col[0];
+            a[o + 1] = col[1];
+            a[o + 2] = col[2];
+            a[o + 3] = 34;
+          }
+        }
+        tx.putImageData(img, 0, 0);
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(terr, 0, 0, cols * cell, rows * cell);
+      }
+
+      function roundRect(c, x, y, w, h, r) {
+        c.beginPath();
+        c.moveTo(x + r, y);
+        c.arcTo(x + w, y, x + w, y + h, r);
+        c.arcTo(x + w, y + h, x, y + h, r);
+        c.arcTo(x, y + h, x, y, r);
+        c.arcTo(x, y, x + w, y, r);
+        c.closePath();
+      }
+
+      function frame(now) {
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, W, H);
+        ctx.drawImage(bg, 0, 0, W, H);
+
+        if (disp.length !== S.C.length) disp = S.C.map((c) => ({ ...c }));
+        disp.forEach((p, j) => {
+          p.x += (S.C[j].x - p.x) * 0.18;
+          p.y += (S.C[j].y - p.y) * 0.18;
+        });
+
+        if (disp.length && $("showTerr").checked) drawTerritory();
+
+        if ($("showTrail").checked)
+          S.trails.forEach((tr, j) => {
+            if (tr.length < 2) return;
+            const pts2 = tr.map(toPx);
+            pts2[pts2.length - 1] = toPx(disp[j] || tr[tr.length - 1]);
+            for (const [w, a] of [
+              [6, 0.18],
+              [2, 0.9],
+            ]) {
+              ctx.strokeStyle = rgb(PAL[j], a);
+              ctx.lineWidth = w;
+              ctx.lineJoin = "round";
+              ctx.lineCap = "round";
+              ctx.beginPath();
+              pts2.forEach((p, i) =>
+                i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y),
+              );
+              ctx.stroke();
+            }
+          });
+
+        const rad = Math.max(2.2, W / 280);
+        const paths = PAL.map(() => new Path2D()),
+          gray = new Path2D();
+        for (let i = 0; i < pts.length; i++) {
+          const p = toPx(pts[i]),
+            g = S.g ? S.g[i] : -1,
+            path = g >= 0 ? paths[g] : gray;
+          path.moveTo(p.x + rad, p.y);
+          path.arc(p.x, p.y, rad, 0, 7);
+        }
+        ctx.fillStyle = rgb(GRAY, 0.75);
+        ctx.fill(gray);
+        paths.forEach((p, j) => {
+          ctx.fillStyle = rgb(PAL[j], 0.9);
+          ctx.fill(p);
+        });
+
+        // distance fan from the focus photo (line 9/10 or hover)
+        if (
+          disp.length &&
+          pts.length &&
+          (hover >= 0 || S.line === 9 || S.line === 10)
+        ) {
+          const f = focusIdx(),
+            fp = toPx(pts[f]);
+          let b = 0,
+            ds = disp.map((c) => (pts[f].x - c.x) ** 2 + (pts[f].y - c.y) ** 2);
+          ds.forEach((d, j) => {
+            if (d < ds[b]) b = j;
+          });
+          ctx.font = "11px ui-monospace, Menlo, Consolas, monospace";
+          disp.forEach((c, j) => {
+            const q = toPx(c);
+            ctx.strokeStyle = rgb(PAL[j], j === b ? 0.95 : 0.4);
+            ctx.lineWidth = j === b ? 2 : 1;
+            ctx.setLineDash(j === b ? [] : [4, 4]);
+            ctx.beginPath();
+            ctx.moveTo(fp.x, fp.y);
+            ctx.lineTo(q.x, q.y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            const mx = fp.x + (q.x - fp.x) * 0.55,
+              my = fp.y + (q.y - fp.y) * 0.55,
+              txt = ds[j].toFixed(0);
+            const tw = ctx.measureText(txt).width + 8;
+            ctx.fillStyle = "rgba(20,22,25,0.85)";
+            roundRect(ctx, mx - tw / 2, my - 9, tw, 17, 4);
+            ctx.fill();
+            ctx.fillStyle = rgb(PAL[j], j === b ? 1 : 0.7);
+            ctx.textAlign = "center";
+            ctx.fillText(txt, mx, my + 4);
+          });
+          ctx.textAlign = "left";
+          ctx.strokeStyle = "#fff";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(fp.x, fp.y, rad + 3, 0, 7);
+          ctx.stroke();
+        }
+
+        if (S.old && S.line >= 8 && S.line <= 13)
+          S.old.forEach((o, j) => {
+            const q = toPx(o);
+            ctx.setLineDash([3, 3]);
+            ctx.strokeStyle = rgb(PAL[j], 0.7);
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(q.x, q.y, 8, 0, 7);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          });
+
+        const pulse = now - S.pulse < 900 ? (now - S.pulse) / 900 : -1;
+        disp.forEach((c, j) => {
+          const q = toPx(c);
+          if (S.j === j && (S.line === 11 || S.line === 12)) {
+            ctx.fillStyle = rgb(PAL[j], 0.22);
+            ctx.beginPath();
+            ctx.arc(q.x, q.y, 18, 0, 7);
+            ctx.fill();
+          }
+          if (pulse >= 0) {
+            ctx.strokeStyle = `rgba(48,209,88,${1 - pulse})`;
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.arc(q.x, q.y, 10 + pulse * 22, 0, 7);
+            ctx.stroke();
+          }
+          ctx.fillStyle = "rgba(0,0,0,0.6)";
+          ctx.beginPath();
+          ctx.arc(q.x, q.y, 10.5, 0, 7);
+          ctx.fill();
+          ctx.strokeStyle = rgb(PAL[j]);
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(q.x, q.y, 7.5, 0, 7);
+          ctx.stroke();
+          ctx.fillStyle = "#fff";
+          ctx.beginPath();
+          ctx.arc(q.x, q.y, 3, 0, 7);
+          ctx.fill();
+        });
+
+        if (mouse && tool !== "point") {
+          const r = +$("nozzle").value;
+          ctx.setLineDash(tool === "erase" ? [4, 3] : []);
+          ctx.strokeStyle =
+            tool === "erase"
+              ? "rgba(255,69,58,0.85)"
+              : "rgba(255,255,255,0.55)";
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.arc(mouse.x, mouse.y, r, 0, 7);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+
+        let label;
+        if (S.line === 0)
+          label = pts.length
+            ? `${pts.length} photos, no groups yet`
+            : "Spray photos onto the map";
+        else if (S.done)
+          label = `Best of ${S.R} tries: [${S.counts.join(" ")}] photos per group`;
+        else
+          label = `Try ${S.cur + 1}/${S.R}, round ${Math.max(S.round, 1)}: ${phase(S.line)}`;
+        ctx.font =
+          '600 12px -apple-system, "SF Pro Text", "Segoe UI", sans-serif';
+        const tw = ctx.measureText(label).width + 28;
+        ctx.fillStyle = "rgba(20,20,22,0.82)";
+        roundRect(ctx, (W - tw) / 2, 12, tw, 26, 13);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(255,255,255,0.22)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.fillStyle = "#ebebf0";
+        ctx.textAlign = "center";
+        ctx.fillText(label, W / 2, 29);
+        ctx.textAlign = "left";
+
+        requestAnimationFrame(frame);
+      }
+
+      function evPos(e) {
+        const r = cv.getBoundingClientRect();
+        return { x: e.clientX - r.left, y: e.clientY - r.top };
+      }
+      function nearest(px, py, maxPx) {
+        let b = -1,
+          bd = maxPx * maxPx;
+        for (let i = 0; i < pts.length; i++) {
+          const p = toPx(pts[i]),
+            d = (p.x - px) ** 2 + (p.y - py) ** 2;
+          if (d < bd) {
+            bd = d;
+            b = i;
+          }
+        }
+        return b;
+      }
+      function brushTick() {
+        if (!mouse) return;
+        const r = +$("nozzle").value;
+        if (tool === "spray") {
+          const n = +$("density").value;
+          for (let i = 0; i < n && pts.length < MAXP; i++) {
+            const a = Math.random() * Math.PI * 2,
+              d = r * Math.sqrt(Math.random());
+            const w = toW(mouse.x + Math.cos(a) * d, mouse.y + Math.sin(a) * d);
+            if (w.x > 0 && w.x < WX && w.y > 0 && w.y < WY) pts.push(w);
+          }
+          if (pts.length >= MAXP)
+            setStatus(
+              `<b>Photo limit reached</b> (${MAXP}). Erase some to add more.`,
+            );
+        } else if (tool === "erase") {
+          const before = pts.length;
+          pts = pts.filter((p) => {
+            const q = toPx(p);
+            return (q.x - mouse.x) ** 2 + (q.y - mouse.y) ** 2 > r * r;
+          });
+          if (pts.length === before) return;
+        }
+        dataChanged();
+      }
+      cv.addEventListener("pointerdown", (e) => {
+        if (e.button !== 0) return;
+        cv.setPointerCapture(e.pointerId);
+        mouse = evPos(e);
+        down = true;
+        if (tool === "point") {
+          if (pts.length < MAXP) {
+            pts.push(toW(mouse.x, mouse.y));
+            dataChanged();
+          }
+        } else {
+          brushTick();
+          brushTimer = setInterval(brushTick, 40);
+        }
+      });
+      cv.addEventListener("pointermove", (e) => {
+        mouse = evPos(e);
+        if (!down) {
+          const h = nearest(mouse.x, mouse.y, 10);
+          if (h !== hover) {
+            hover = h;
+            if (S.d) ui();
+          }
+        }
+      });
+      const endBrush = () => {
+        down = false;
+        clearInterval(brushTimer);
+      };
+      cv.addEventListener("pointerup", endBrush);
+      cv.addEventListener("pointercancel", endBrush);
+      cv.addEventListener("pointerleave", () => {
+        mouse = null;
+        if (hover >= 0) {
+          hover = -1;
+          if (S.d) ui();
+        }
+      });
+      cv.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        const p = evPos(e),
+          i = nearest(p.x, p.y, 12);
+        if (i >= 0) {
+          pts.splice(i, 1);
+          dataChanged();
+        }
+      });
+
+      document.querySelectorAll(".seg button").forEach((b) =>
+        b.addEventListener("click", () => {
+          tool = b.dataset.tool;
+          document
+            .querySelectorAll(".seg button")
+            .forEach((x) => x.classList.toggle("on", x === b));
+          cv.style.cursor = tool === "point" ? "crosshair" : "none";
+        }),
+      );
+      cv.style.cursor = "none";
+
+      [
+        ["nozzle", "oNozzle"],
+        ["density", "oDensity"],
+        ["k", "oK"],
+        ["R", "oR"],
+        ["speed", "oSpeed"],
+      ].forEach(([i, o]) =>
+        $(i).addEventListener("input", () => {
+          $(o).textContent = $(i).value;
+          if (i === "k" || i === "R") resetRun();
+          if (i === "speed" && timer) {
+            stop();
+            play();
+          }
+        }),
+      );
+      $("init").addEventListener("change", resetRun);
+      $("seed").addEventListener("change", resetRun);
+      $("dice").addEventListener("click", () => {
+        $("seed").value = Math.floor(Math.random() * 1000);
+        resetRun();
+      });
+      $("showMap").addEventListener("change", drawBg);
+
+      $("pTrips").addEventListener("click", () => {
+        pts = threeTrips();
+        dataChanged();
+      });
+      $("pBlobs").addEventListener("click", () => {
+        pts = blobs();
+        dataChanged();
+      });
+      $("pClear").addEventListener("click", () => {
+        pts = [];
+        dataChanged();
+      });
+
+      $("bLine").addEventListener("click", () => {
+        stop();
+        stepLine();
+        ui();
+      });
+      $("bRound").addEventListener("click", stepRound);
+      $("bPlay").addEventListener("click", play);
+      $("bAll").addEventListener("click", runAll);
+      $("bReset").addEventListener("click", resetRun);
+
+      document.addEventListener("keydown", (e) => {
+        if (/INPUT|SELECT|TEXTAREA|BUTTON/.test(e.target.tagName)) return;
+        if (e.code === "Space") {
+          e.preventDefault();
+          stop();
+          stepLine();
+          ui();
+        }
+        if (e.code === "Enter") {
+          e.preventDefault();
+          play();
+        }
+      });
+
+      function tick() {
+        const d = new Date();
+        $("clock").textContent =
+          d.toLocaleDateString("en-US", {
+            weekday: "short",
+            day: "numeric",
+            month: "short",
+          }) +
+          "  " +
+          d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+      }
+      setInterval(tick, 10000);
+      tick();
+
+      new ResizeObserver(resize).observe(cv);
+      window.addEventListener("resize", resize);
+
+      pts = threeTrips();
+      freshState();
+      renderCode();
+      resize();
+      ui();
+      requestAnimationFrame(frame);
     </script>
   </body>
 </html>
