@@ -37,6 +37,12 @@ Press **Step line** to run one line of code, or **Play** to watch it go. Draw yo
 
 Group LarbUbon, CEi KMITL
 
-Harris Suteerapornchai, Chanathip Jesdapairote, Supanut Chomthong, Thanakorn Sa-Nguannam, Paphada Borisutsukkamol
+| Name | Student ID |
+|---|---|
+| Harris Suteerapornchai | 67011115 |
+| Chanathip Jesdapairote | 67011091 |
+| Supanut Chomthong | 67011315 |
+| Thanakorn Sa-Nguannam | 67011332 |
+| Paphada Borisutsukkamol | 67011634 |
 
 Inspired by [@machinelearningtogo](https://www.tiktok.com/@machinelearningtogo/video/7691252907978624288)
