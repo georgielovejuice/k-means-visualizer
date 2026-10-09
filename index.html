@@ -982,22 +982,22 @@
         );
       }
       function codeLines() {
-        const { k, R, init } = P();
+        const { k, R, init, seed } = P();
         return [
           "import numpy as np",
           pad("X = photos", `${pts.length} photos, (x, y) each`),
           pad(`k = ${k}`, "number of groups"),
-          pad("best = np.inf", "no try yet"),
+          `best, rng = np.inf, np.random.default_rng(${seed})`,
           pad(`for start in range(${R}):`, `${R} random starts`),
           init === "pp"
-            ? pad("    C = kmeans_pp(X, k, rng)", "spread-out start")
+            ? pad("    C = kmeans_pp(X, k, rng)", "helper: spread-out start")
             : "    C = X[rng.choice(len(X), k, replace=False)]",
           "    while True:",
           pad("        old = C.copy()", "remember centers"),
           pad("        d = ((X[:, None] - C) ** 2).sum(2)", "squared"),
           pad("        g = d.argmin(1)", "nearest center"),
           "        for j in range(k):",
-          pad("            C[j] = X[g == j].mean(0)", "move to mean"),
+          "            if (g == j).any(): C[j] = X[g == j].mean(0)",
           pad("        if (C == old).all(): break", "nothing moved"),
           pad("    s = d.min(1).sum()", "total spread"),
           "    if s < best: best, keep = s, g",
@@ -1011,7 +1011,7 @@
         const code = ci >= 0 ? src.slice(0, ci) : src,
           com = ci >= 0 ? src.slice(ci) : "";
         const body = esc(code).replace(
-          /\b(import|as|for|in|while|True|False|None|if|break)\b|\b(\d+)\b|\b(range|len|copy|sum|argmin|mean|min|choice|bincount|inf|all|print|kmeans_pp)\b|\b(np|rng)\b/g,
+          /\b(import|as|for|in|while|True|False|None|if|break)\b|\b(\d+)\b|\b(range|len|copy|sum|argmin|mean|min|choice|bincount|inf|all|print|kmeans_pp|default_rng|any)\b|\b(np|rng)\b/g,
           (m, kw, nu, fn, md) =>
             kw
               ? `<span class="kw">${kw}</span>`
@@ -1138,7 +1138,10 @@
           `k = ${k}: we want ${k} groups, the algorithm never sees the real trips`,
         );
         S.best = Infinity;
-        yield at(4, "best = inf, so the first finished try always wins");
+        yield at(
+          4,
+          `best = inf, so the first finished try always wins. rng is seeded with ${seed}, so every run repeats`,
+        );
 
         for (let t = 0; t < R; t++) {
           S.start = t;
@@ -1211,7 +1214,7 @@
               10,
               S.round === 0
                 ? `every photo joined its nearest center. WCSS = ${fmt(w)}`
-                : `${changed} photo(s) switched group. WCSS = ${fmt(w)}`,
+                : `${changed} ${changed === 1 ? "photo" : "photos"} switched group. WCSS = ${fmt(w)}`,
             );
 
             for (let j = 0; j < k; j++) {
@@ -1235,12 +1238,12 @@
                 if (mv > 0) S.trails[j].push({ ...S.C[j] });
                 yield at(
                   12,
-                  `C${j + 1} = (${sx.toFixed(0)} / ${n}, ${sy.toFixed(0)} / ${n}) = (${S.C[j].x.toFixed(2)}, ${S.C[j].y.toFixed(2)}), moved ${mv.toFixed(2)}`,
+                  `C${j + 1} = (${sx.toFixed(2)} / ${n}, ${sy.toFixed(2)} / ${n}) = (${S.C[j].x.toFixed(2)}, ${S.C[j].y.toFixed(2)}), moved ${mv.toFixed(2)}`,
                 );
               } else {
                 yield at(
                   12,
-                  `group ${j + 1} has no photos. The mean of nothing is undefined (numpy gives nan), so C${j + 1} stays put`,
+                  `group ${j + 1} has no photos, so the guard skips it and C${j + 1} stays at its old position`,
                 );
               }
             }
@@ -1259,7 +1262,7 @@
                 ? "C == old for every center: nothing moved, break"
                 : S.round >= CAP
                   ? "safety cap reached, break"
-                  : `${moved} center(s) moved: loop for another round`,
+                  : `${moved} ${moved === 1 ? "center" : "centers"} moved: loop for another round`,
             );
             if (stop) break;
           }
@@ -1272,7 +1275,10 @@
           }
           S.s = s;
           S.tries[t].s = s;
-          yield at(14, `s = ${fmt(s)} after ${S.round} rounds`);
+          yield at(
+            14,
+            `s = ${fmt(s)} after ${S.round} ${S.round === 1 ? "round" : "rounds"}`,
+          );
 
           if (s < S.best) {
             const prev = S.best;
@@ -1290,7 +1296,9 @@
           } else {
             yield at(
               15,
-              `${fmt(s)} is not below best ${fmt(S.best)} (${(s / S.best).toFixed(2)}x worse): discard this try`,
+              S.best > 0
+                ? `${fmt(s)} is not below best ${fmt(S.best)} (${(s / S.best).toFixed(2)}x worse): discard this try`
+                : `${fmt(s)} is not below best ${fmt(S.best)}: discard this try`,
             );
           }
         }
@@ -1299,6 +1307,9 @@
         S.C = S.bestC;
         S.trails = S.bestTrails;
         S.cur = S.bestTry;
+        S.start = S.bestTry;
+        S.round = S.tries[S.bestTry].rounds;
+        S.s = S.best;
         S.j = null;
         S.old = null;
         for (let i = 0; i < N; i++)
@@ -1484,16 +1495,21 @@
             html += `<div class="try pending${S.cur === t && !S.done ? " cur" : ""}"><div class="b"></div><small>T${t + 1}</small></div>`;
             continue;
           }
-          const ratio = tr.s / S.best;
+          const ratio = S.best > 0 ? tr.s / S.best : tr.s === 0 ? 1 : Infinity;
           const cls = t === S.bestTry ? "best" : ratio > 1.1 ? "stuck" : "";
           html += `<div class="try ${cls}${S.cur === t ? " cur" : ""}" title="Try ${t + 1}: s = ${fmt(tr.s)}, ${tr.rounds} rounds">
-      <div class="b" style="height:${Math.max(4, (tr.s / maxS) * 62)}px"></div><small>${ratio.toFixed(1)}x</small></div>`;
+      <div class="b" style="height:${Math.max(4, (tr.s / maxS) * 62)}px"></div><small>${isFinite(ratio) ? ratio.toFixed(1) + "x" : "—"}</small></div>`;
         }
         $("tries").innerHTML = html;
 
         drawLoss();
 
-        if (S.line === 0)
+        const short = S.line === 0 && pts.length < P().k;
+        if (short)
+          setStatus(
+            `<b>Need at least k = ${P().k} photos</b> (have ${pts.length}). Add more on the map or lower k.`,
+          );
+        else if (S.line === 0)
           setStatus(
             `<b>Ready.</b> ${pts.length} photos. Press Step line to run line 1.`,
           );
@@ -1501,13 +1517,15 @@
           setStatus(
             `<b>Done.</b> Best of ${R} tries is try ${S.bestTry + 1}, s = ${fmt(S.best)}. Photos per group: [${S.counts.join(" ")}]`,
           );
+        else if (S.cur < 0)
+          setStatus(`<b>Setup</b>, line ${S.line}: ${phase(S.line)}`);
         else
           setStatus(
             `<b>Try ${S.cur + 1} of ${R}</b>, round ${Math.max(S.round, 1)}, line ${S.line}: ${phase(S.line)}`,
           );
         $("bPlay").textContent = timer ? "Pause" : "Play until convergence";
         ["bLine", "bRound", "bPlay", "bAll"].forEach(
-          (id) => ($(id).disabled = S.done && !timer),
+          (id) => ($(id).disabled = short || (S.done && !timer)),
         );
         $("count").textContent = `${pts.length} photos`;
       }
@@ -1517,10 +1535,10 @@
       function phase(l) {
         return (
           {
-            1: "setup",
-            2: "setup",
-            3: "setup",
-            4: "setup",
+            1: "load numpy",
+            2: "load photos",
+            3: "choose k",
+            4: "set best and rng",
             5: "new try",
             6: "drop the starting centers",
             7: "next round",
@@ -1567,15 +1585,20 @@
           return;
         }
         const maxR = Math.max(2, ...tries.map((t) => t.loss.length));
-        const maxV = Math.max(...tries.flatMap((t) => t.loss)) * 1.05;
+        // round tick step (1, 2, 5 x 10^n), domain at least [0, 1]
+        const top = Math.max(1, ...tries.flatMap((t) => t.loss));
+        const mag = 10 ** Math.floor(Math.log10(top / 4)),
+          step = [1, 2, 5, 10].map((m) => m * mag).find((s) => s * 4 >= top);
+        const nT = Math.ceil(top / step),
+          maxV = nT * step;
         const X = (i) => L + (i / (maxR - 1)) * gw,
           Y = (v) => T + gh - (v / maxV) * gh;
 
         lx.strokeStyle = "rgba(255,255,255,0.07)";
         lx.fillStyle = "#98989f";
         lx.lineWidth = 1;
-        for (let g = 0; g <= 4; g++) {
-          const v = (maxV * g) / 4,
+        for (let g = 0; g <= nT; g++) {
+          const v = step * g,
             y = Y(v);
           lx.beginPath();
           lx.moveTo(L, y);
@@ -1583,7 +1606,7 @@
           lx.stroke();
           lx.textAlign = "right";
           lx.fillText(
-            v >= 1000 ? (v / 1000).toFixed(1) + "k" : v.toFixed(0),
+            v >= 1000 ? +(v / 1000).toFixed(1) + "k" : String(+v.toFixed(2)),
             L - 8,
             y + 4,
           );
@@ -1606,12 +1629,19 @@
         for (const i of order) {
           const d = S.tries[i].loss;
           const isCur = i === S.cur && !S.done,
-            isBest = i === S.bestTry;
+            isBest = i === S.bestTry,
+            s = S.tries[i].s,
+            isStuck =
+              !isBest &&
+              s != null &&
+              (S.best > 0 ? s / S.best > 1.1 : s > 0);
           lx.strokeStyle = isCur
             ? "#0a84ff"
             : isBest
               ? "#30d158"
-              : "rgba(142,142,147,0.35)";
+              : isStuck
+                ? "rgba(255,69,58,0.6)"
+                : "rgba(142,142,147,0.35)";
           lx.lineWidth = isCur ? 2.5 : isBest ? 2 : 1.2;
           lx.beginPath();
           d.forEach((v, j) =>
@@ -2117,6 +2147,10 @@
           }
         }),
       );
+      // hand focus back so Space / Enter shortcuts work after a change
+      document
+        .querySelectorAll("input[type=range], select")
+        .forEach((el) => el.addEventListener("change", () => el.blur()));
       $("init").addEventListener("change", resetRun);
       $("seed").addEventListener("change", resetRun);
       $("dice").addEventListener("click", () => {
@@ -2161,6 +2195,7 @@
           play();
         }
       });
+
 
       function tick() {
         const d = new Date();
