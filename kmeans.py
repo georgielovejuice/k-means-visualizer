@@ -6,7 +6,7 @@ photos = load_photos()
 k = 3
 
 best, random = np.inf, np.random.default_rng(17)
-for attempt in range(15):
+for attempt in range(10):
     centers = random.choice(photos, k, replace=False)  # drop 3 flags on random photos
     while True:
         old_centers = centers.copy()
